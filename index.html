@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!--
+     - Roxy: Bootstrap template by GettTemplates.com
+     - https://gettemplates.co/roxy
+    -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Roxy by GetTemplates.co</title>
+    <meta name="description" content="Roxy">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="vendor/select2/select2.min.css">
+    <link rel="stylesheet" href="vendor/owlcarousel/owl.carousel.min.css">
+    <link rel="stylesheet" href="vendor/lightcase/lightcase.css">
+     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400|Work+Sans:300,400,700" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.min.css">
+    <link rel="stylesheet" href="css/estilos.css">
+    <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+
+    <!-- Modernizr JS for IE8 support of HTML5 elements and media queries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.js"></script>
+
+    <script src="js/go/go.js"></script>
+    <script src="js/FileSaver.js"></script>
+
+    <script>
+
+        var nodeDataArray = [];
+        var linkDataArray = [];
+
+        function init(){
+            var $ = go.GraphObject.make;
+
+            diagram = $(go.Diagram, "pizarra",
+                {
+                    initialAutoScale: go.Diagram.Uniform,
+                    contentAlignment: go.Spot.Center,
+                    layout: $(go.ForceDirectedLayout, { defaultSpringLength: 10, maxIterations: 300 }),
+                    maxSelectionCount: 2,
+                    "ObjectDoubleClicked": function(e) {
+                        console.log("ObjectDoubleClicked " + e.subject.part.key);
+                        devolverSel(e);
+                     },
+                }
+            );
+            //diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+
+            // define the Node template
+            diagram.nodeTemplate =
+                $(go.Node, "Horizontal",
+                {
+                    locationSpot: go.Spot.Center,  // Node.location is the center of the Shape
+                    locationObjectName: "SHAPE",
+                    selectionAdorned: false,
+                    //doubleClick: devolverSel  // defined below
+                },
+                $(go.Panel, "Spot",
+                    $(go.Shape, "Circle",
+                    {
+                        name: "SHAPE",
+                        fill: "lightgray",  // default value, but also data-bound
+                        strokeWidth: 0,
+                        desiredSize: new go.Size(30, 30),
+                        portId: ""  // so links will go to the shape, not the whole node
+                    },
+                    new go.Binding("fill", "isSelected", (s, obj) => s ? "red" : obj.part.data.color).ofObject()
+                    ),
+                    $(go.TextBlock,
+                    new go.Binding("text", "nombre"))),
+                $(go.TextBlock,
+                    new go.Binding("text", "cf"))
+                );
+            // define the Link template
+            diagram.linkTemplate =
+                $(go.Link,
+                {
+                    selectable: false,      // links cannot be selected by the user
+                    curve: go.Link.Bezier,
+                    layerName: "Background"  // don't cross in front of any nodes
+                },
+                $(go.Shape,  // this shape only shows when it isHighlighted
+                    { isPanelMain: true, stroke: null, strokeWidth: 5 },
+                    new go.Binding("stroke", "isHighlighted", h => h ? "red" : null).ofObject()),
+                $(go.Shape,
+                    // mark each Shape to get the link geometry with isPanelMain: true
+                    { isPanelMain: true, stroke: "black", strokeWidth: 1 },
+                    new go.Binding("stroke", "color")),
+                $(go.Shape, { toArrow: "Standard" }),
+                $(go.TextBlock, new go.Binding("text", "cfr")) // this is a Link label
+            );
+            //generateGraph();
+        }
+        
+        // Create an assign a model that has a bunch of nodes with a bunch of random links between them.
+        function generateGraph() {
+            var names = [
+                "Joshua", "Kathryn", "Robert", "Jason", "Scott", "Betsy", "John",
+                "Walter", "Gabriel", "Simon", "Emily", "Tina", "Elena", "Samuel",
+                "Jacob", "Michael", "Juliana", "Natalie", "Grace", "Ashley", "Dylan"
+            ];
+            nodeDataArray = [];
+            for (var i = 0; i < names.length; i++) {
+                nodeDataArray.push({ key: i, text: names[i], color: go.Brush.randomColor(128, 240), cf: i.toString() });
+            }
+            linkDataArray = [];
+            var num = nodeDataArray.length;
+            for (var i = 0; i < num * 2; i++) {
+                var a = Math.floor(i/2);
+                var b = Math.floor(Math.random() * num / 4) + 1;
+                linkDataArray.push({ from: a, to: (a + b) % num, color: go.Brush.randomColor(0, 127), 
+                    cfr: "de: " + a.toString() + " a: " + ((a + b) % num).toString() });
+            }
+            diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+            console.log(nodeDataArray);
+            console.log(linkDataArray);
+        }
+
+        function addNode(){
+            var nombreAdd = document.getElementById("nombre").value;
+            var cfAdd = document.getElementById("cf").value;
+            if (cfAdd == "") {
+                nodeDataArray.push({ key: nodeDataArray.length, nombre: nombreAdd, 
+                    color: go.Brush.randomColor(128, 240), cf: -1 
+                });
+            }else{
+                nodeDataArray.push({ key: nodeDataArray.length, nombre: nombreAdd, 
+                    color: go.Brush.randomColor(128, 240), cf: cfAdd 
+                });
+            }
+            diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+
+            document.getElementById("nombre").value = "";            
+            document.getElementById("cf").value = "";            
+
+            console.log(nodeDataArray);
+            var jsonStr = JSON.stringify(nodeDataArray);
+            console.log(jsonStr);
+            console.log(typeof(jsonStr));
+            const myArr = JSON.parse(jsonStr);
+            console.log(myArr);
+            document.getElementById("parrafo").innerHTML +=  "<br/>" 
+                + "Nodo: " +  nodeDataArray[nodeDataArray.length - 1].key + "     "
+                + "Nombre: " +  nodeDataArray[nodeDataArray.length - 1].nombre + "     "
+                + "CF: " +  nodeDataArray[nodeDataArray.length - 1].cf;
+        }
+
+        function addLink(){
+            var nodoSalida = document.getElementById("x").value;
+            var nodoLlegada = document.getElementById("y").value;
+            var valorCFR = document.getElementById("cfr").value;
+            var x = getIndice(nodoSalida);
+            var y = getIndice(nodoLlegada);
+            linkDataArray.push({ from: x, to: y, color: go.Brush.randomColor(0, 127), 
+                    cfr: valorCFR });
+            diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+
+            document.getElementById("cfr").value = "";
+
+            console.log(linkDataArray);
+            var jsonStr = JSON.stringify(linkDataArray);
+            console.log(jsonStr);
+            console.log(typeof(jsonStr));
+            const myArr = JSON.parse(jsonStr);
+            console.log(myArr);
+        }
+
+        function getIndice(nombre){
+            for (var i = 0; i < nodeDataArray.length; i++) {
+                if (nodeDataArray[i].nombre == nombre) {
+                    return i;
+                }
+            }
+        }
+        function devolverSel(node){
+            //if (node.isSelected) {
+            //    console.log(node.key);
+            //    console.log(node.data);
+            //    $('#modNode').modal();
+            //    let key = node.key;
+            //    var nom = node.data.nombre;
+            //    var cf = node.data.cf;
+            //    document.getElementById('nombreM').value = nom;
+            //    document.getElementById('cfM').value = cf;
+            //}
+            console.log(node.subject.part.data.key);
+            console.log(node.subject.part.data);
+            $('#modNode').modal();
+            let key = node.subject.part.data.key;
+            var nom = node.subject.part.data.nombre;
+            var cf = node.subject.part.data.cf;
+            document.getElementById('nombreM').value = nom;
+            document.getElementById('cfM').value = cf;
+        }
+        function modNode(){
+            var cfM = document.getElementById("cfM").value;
+            var nombreM = document.getElementById("nombreM").value;
+            nodeDataArray.forEach(element => {
+                if (element.nombre == nombreM) {
+                    element.cf = cfM;
+                }
+            });            
+            diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+            console.log(nodeDataArray);
+        }
+        function calcular(){
+            var meta = document.getElementById("meta").value;
+            var key; var cfRet;
+            nodeDataArray.forEach(element => {
+                if (element.nombre == meta) {
+                    key = element.key;
+                }
+            });
+            if (esHecho(meta)) {
+                document.getElementById("parrafo").innerHTML +=  "<br/>" 
+                + "el nodo " + nodeDataArray[key].nombre + " es hecho!"
+                + " y devuelve " + nodeDataArray[key].cf + " de CF";
+                return nodeDataArray[key].cf;
+            }
+            var verticesKeys = getAdyacenciaKeys(meta);
+            var r = 0.0;
+            for (let index = 0; index < verticesKeys.length; index++) {
+                var c;
+                if (nodeDataArray[verticesKeys[index]].cf == -1) {
+                    c = cf(verticesKeys[index]);
+                    nodeDataArray[verticesKeys[index]].cf = c;
+                }
+                r = r + (parseFloat(nodeDataArray[verticesKeys[index]].cf) * 
+                    prob(nodeDataArray[verticesKeys[index]].nombre, meta));                
+            }
+            nodeDataArray[key].cf = r;
+
+            diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+            
+            document.getElementById("parrafo").innerHTML +=  "<br/>" 
+                + "el nodo " + nodeDataArray[key].nombre + " fue calculado "
+                + " y devuelve " + nodeDataArray[key].cf + " de CF";
+            
+            return r;
+
+        }
+
+        function cf(vertKey){
+            var vert = nodeDataArray[vertKey].nombre;
+            var cfRet;
+            if (esHecho(vert)) {
+                document.getElementById("parrafo").innerHTML +=  "<br/>" 
+                + "el nodo " + nodeDataArray[vertKey].nombre + " es hecho!"
+                + " y devuelve " + nodeDataArray[vertKey].cf + " de CF";
+                return nodeDataArray[vertKey].cf;
+            }
+            var verticesKeys = getAdyacenciaKeys(vert);
+            var r = 0.0;
+            for (let index = 0; index < verticesKeys.length; index++) {
+                var c;
+                if (nodeDataArray[verticesKeys[index]].cf == -1) {
+                    c = cf(verticesKeys[index]);
+                    nodeDataArray[verticesKeys[index]].cf = c;
+                }
+                r = r + (parseFloat(nodeDataArray[verticesKeys[index]].cf) * 
+                    prob(nodeDataArray[verticesKeys[index]].nombre, vert));                
+            }
+            nodeDataArray[vertKey].cf = r;
+
+            document.getElementById("parrafo").innerHTML +=  "<br/>" 
+                + "el nodo " + nodeDataArray[vertKey].nombre + " fue calculado "
+                + " y devuelve " + nodeDataArray[vertKey].cf + " de CF";
+
+            return r;
+
+        }
+
+        /*function esHecho(nombreV){
+            var cfV;
+            nodeDataArray.forEach(element => {
+                if (element.nombre == nombreV) {
+                    cfV = element.cf;
+                }
+            });
+            if (cfV != -1) {
+                return true;
+            }else{
+                return false;
+            }
+        }*/
+        function esHecho(nombreV){
+            var adyKeys = getAdyacenciaKeys(nombreV);
+            if (adyKeys.length == 0) {
+                return true;
+            }else{
+                return false;
+            }
+        }
+        function getAdyacenciaKeys(nombreV){
+            var key; var adyKeys = [];
+            nodeDataArray.forEach(element => {
+                if (element.nombre == nombreV) {
+                    key = element.key;
+                }
+            });
+            linkDataArray.forEach(element => {
+                if (element.to == key) {
+                    adyKeys.push(element.from);
+                }
+            });
+            return adyKeys;
+        }
+        function prob(nomA, nomB){
+            var keyA, keyB;
+            var cfr;
+            nodeDataArray.forEach(element => {
+                if (element.nombre == nomA) {
+                    keyA = element.key;
+                }else{
+                    if (element.nombre == nomB) {
+                    keyB = element.key;
+                }
+                }
+            });
+            linkDataArray.forEach(element => {
+                if (element.from == keyA && element.to == keyB) {
+                    cfr = element.cfr;
+                }
+            });
+            return parseFloat(cfr);
+        }
+
+        
+        function cargarRed(){
+            var archivo = $("#archivo");
+            console.log(archivo[0].files);
+            const reader = new FileReader();
+
+            reader.onload = function () {
+                var str = reader.result;
+                console.log(str);
+                console.log(typeof(str));
+                
+                var net = JSON.parse(str);
+
+                nodeDataArray = net.nodes;
+                linkDataArray = net.links;
+                diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+            }
+            reader.readAsText(archivo[0].files[0]);
+        }
+
+        function guardarRed(){
+            var net = {
+                nodes : nodeDataArray,
+                links : linkDataArray
+            }
+            var strNet = JSON.stringify(net);
+
+            /*var blob = new Blob ([strNet], {type: "text/plain;charset=utf-8"});
+            saveAs(blob, "bayes.txt");*/
+
+            var file = new File([strNet], "bayes.txt", {type: "text/plain;charset=utf-8"});
+            saveAs(file);
+
+        }
+        
+    </script>
+
+</head>
+<body onload="init()" data-spy="scroll" data-target="#navbar" class="static-layout">
+	<nav id="header-navbar" class="navbar navbar-expand-lg py-4">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center text-white" href="#">
+                <h3 class="font-weight-bolder mb-0">Bayesian Network</h3>
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-nav-header" aria-controls="navbar-nav-header" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="lnr lnr-menu"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbar-nav-header">
+                <ul class="navbar-nav ml-auto">
+                 <li class="nav-item">
+                        <a class="nav-link" href="#">Home</a>
+                 </li>
+                 <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" data-target="#exampleModal" href="#">Add Node</a>
+                 </li>
+
+                
+
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" data-target="#addLink" href="#">Add Link</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" data-target="#calcular"href="#">Calcular</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" data-target="#cargar" href="#">Cargar red</a>
+                </li>
+                <li class="nav-item">
+                    <a onclick="guardarRed()" class="nav-link" href="#">Guardar red</a>
+                </li>
+                <!--<li class="nav-item">
+                    <a id="side-search-open" class="nav-link" href="#">
+                        <span class="lnr lnr-magnifier"></span>
+                    </a>
+                </li>-->
+                <li class="nav-item only-desktop">
+                    <a class="nav-link" id="side-nav-open" href="#">
+                        <span class="lnr lnr-menu"></span>
+                    </a>
+                    </li>
+                </ul>
+            </div>
+       </div>
+    </nav>
+    <!-- Modal add node-->
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+        <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Añadir vertice</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                      <label for="nombre">Nombre</label>
+                      <input type="text" class="form-control" id="nombre" placeholder="Nombre del nodo">
+                    </div>
+                    <div class="form-group">
+                      <label for="cf">CF</label>
+                      <input type="text" class="form-control" id="cf" placeholder="CF del nodo">
+                    </div>
+                    <!--<button type="submit" class="btn btn-primary">Submit</button>-->
+                  </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button onclick="addNode()" type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Modal MOD node-->
+    <div class="modal fade" id="modNode" tabindex="-1" role="dialog" aria-labelledby="modNodeLabel">
+        <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modNodeLabel">Modificar vértice</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                      <label for="nombreM">Nombre</label>
+                      <input type="text" readonly class="form-control-plaintext" id="nombreM" placeholder="Nombre del nodo">
+                    </div>
+                    <div class="form-group">
+                      <label for="cfM">CF</label>
+                      <input type="text" class="form-control" id="cfM" placeholder="CF del nodo">
+                    </div>
+                    <!--<button type="submit" class="btn btn-primary">Submit</button>-->
+                  </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button onclick="modNode()" type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Modal add link-->
+    <div class="modal fade" id="addLink" tabindex="-1" role="dialog" aria-labelledby="addLinkLabel">
+        <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Añadir arista</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                      <label for="nombre">Desde:</label>
+                      <input type="text" class="form-control" id="x" placeholder="Nombre del nodo">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nombre">Hacia:</label>
+                        <input type="text" class="form-control" id="y" placeholder="Nombre del nodo">
+                    </div>
+
+                    <div class="form-group">
+                      <label for="cf">CFR</label>
+                      <input type="text" class="form-control" id="cfr" placeholder="Peso de la arista">
+                    </div>
+                    <!--<button type="submit" class="btn btn-primary">Submit</button>-->
+                  </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button onclick="addLink()" type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Modal CALCULAR M-->
+    <div class="modal fade" id="calcular" tabindex="-1" role="dialog" aria-labelledby="calcularLabel">
+        <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calcularLabel">Calcular meta</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                      <label for="meta">Meta?</label>
+                      <input type="text" class="form-control" id="meta" placeholder="Vértice Meta">
+                    </div>
+                  </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button onclick="calcular()" type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Modal CARGAR-->
+    <div class="modal fade" id="cargar" tabindex="-1" role="dialog" aria-labelledby="cargarLabel">
+        <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cargarLabel">Cargar red bayesiana</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                      <label for="archivo"></label>
+                      <input type="file" class="form-control" id="archivo">
+                    </div>
+                  </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button onclick="cargarRed()" type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div id="side-nav" class="sidenav">
+        <a href="javascript:void(0)" id="side-nav-close">&times;</a>
+        
+        <div class="sidenav-content">
+            <p>
+                Santa Cruz de la Sierra - Bolivia
+            </p>
+            <p>
+                <span class="fs-16 primary-color">@G1inn</span>
+            </p>
+            <p>ginno.arteaga@gmail.com</p>
+        </div>
+    </div>
+
+    <div id="side-search" class="sidenav">
+            <a href="javascript:void(0)" id="side-search-close">&times;</a>
+            <div class="sidenav-content">
+                <form action="">
+
+                    <div class="input-group md-form form-sm form-2 pl-0">
+                    <input class="form-control my-0 py-1 red-border" type="text" placeholder="Search" aria-label="Search">
+                    <div class="input-group-append">
+                        <button class="input-group-text red lighten-3" id="basic-text1">
+                            <span class="lnr lnr-magnifier"></span>
+                        </button>
+                    </div>
+                    </div>
+
+                </form>
+            </div>
+            
+    </div>	
+
+    <div class="jumbotron d-flex align-items-center">
+        <div id="pizarra">
+            
+        </div>
+    </div>	
+
+<!-- Features Section-->
+<section id="features" class="bg-white">
+    <div class="container">
+        <div class="section-content">
+            <!-- Section Title -->
+            <div class="title-wrap mb-5" data-aos="fade-up">
+                <h2 class="section-title">
+                    Registro de operaciones:
+                </h2>
+            </div>
+            <!-- End of Section Title -->
+            <div class="align-items-center">
+                <!-- Features Item -->
+                <div class="text-center">
+                    <div class="shadow rounded feature-item p-4 mb-4" data-aos="fade-up">
+                        <p id="parrafo">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod.</p>
+                    </div>
+                </div>
+                <!-- End of Feature Item -->
+            </div>
+        </div>
+    </div>
+</section>
+<!-- End of Features Section-->
+<footer class="mastfoot my-3">
+    <div class="inner container">
+         <div class="row">
+         	<div class="col-lg-4 col-md-12 d-flex align-items-center">
+         		
+         	</div>
+         	<div class="col-lg-4 col-md-12 d-flex align-items-center">
+         		<p class="mx-auto text-center mb-0">&copy; 2021 G1inn. Dev by <a href="https://https://github.com/G1inn" target="_blank">Me</a>.</p>
+         	</div>
+            
+        </div>
+    </div>
+</footer>	<!-- External JS -->
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.js"></script>
+	<script src="vendor/bootstrap/popper.min.js"></script>
+	<script src="vendor/bootstrap/bootstrap.min.js"></script>
+	<script src="vendor/select2/select2.min.js "></script>
+	<script src="vendor/owlcarousel/owl.carousel.min.js"></script>
+	<script src="vendor/stellar/jquery.stellar.js" type="text/javascript" charset="utf-8"></script>
+	<script src="vendor/isotope/isotope.min.js"></script>
+	<script src="vendor/lightcase/lightcase.js"></script>
+	<script src="vendor/waypoints/waypoint.min.js"></script>
+	 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+	 
+	<!-- Main JS -->
+	<script src="js/app.min.js "></script>
+	<script src="//localhost:35729/livereload.js"></script>
+
+    <script>
+    </script>
+</body>
+</html>
