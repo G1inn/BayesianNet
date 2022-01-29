@@ -1,10 +1,4 @@
-/* PrismJS 1.23.0
-https://prismjs.com/download.html#themes=prism-okaidia&languages=markup+css+clike+javascript+typescript&plugins=normalize-whitespace */
-/**
-* okaidia theme for JavaScript, CSS and HTML
-* Loosely based on Monokai textmate theme by http://www.monokai.nl/
-* @author ocodia
-*/
+
 pre[class*="language-"],
 code[class*="language-"] {
   color: #d4d4d4;
